@@ -83,6 +83,16 @@ userSchema.pre('save', async function (next) {
 
 //
 //
+// Compare Password
+//
+userSchema.methods.passwordCorrect = async function (
+  candidatePassword,
+  userPassword
+) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
+//
+//
 // Encrypt password using bcryptJs npm
 //
 
