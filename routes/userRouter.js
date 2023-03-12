@@ -10,16 +10,17 @@ const router = express.Router();
 //
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
+router.post('/logout', authController.logout);
 
 router
   .route('/')
-  .get(userController.getAllUser)
-  .post(userController.createUser);
+  .get(authController.protect, userController.getAllUser)
+  .post(authController.protect, userController.createUser);
 
 router
   .route('/:id')
-  .get(userController.getUser)
-  .put(userController.updateUser)
-  .delete(userController.deleteUser);
+  .get(authController.protect, userController.getUser)
+  .put(authController.protect, userController.updateUser)
+  .delete(authController.protect, userController.deleteUser);
 
 module.exports = router;

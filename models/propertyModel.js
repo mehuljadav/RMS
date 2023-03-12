@@ -79,7 +79,7 @@ const propertySchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['house', 'apartment', 'farm-house'],
+    enum: ['flat', 'house', 'duplex-house', 'farm-house'],
     required: [true, 'Type is required'],
   },
   status: {
@@ -91,9 +91,8 @@ const propertySchema = new mongoose.Schema({
     type: [String],
   },
   user: {
-    type: Number,
-    // type: mongoose.Schema.Types.ObjectId,
-    // ref: 'User',
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true,
   },
   created: {

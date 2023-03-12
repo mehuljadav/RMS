@@ -14,7 +14,7 @@ const createSendToken = (user, statusCode, req, res) => {
   });
 
   // 2. create new Cookies
-  res.cookie('jtw', token, {
+  res.cookie('jwt', token, {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
@@ -29,7 +29,7 @@ const createSendToken = (user, statusCode, req, res) => {
   res.status(statusCode).json({
     status: 'success',
     token,
-    data: user,
+    data: user.email,
   });
 };
 
@@ -60,13 +60,13 @@ exports.signup = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return next(new AppError('Please provide Email and Password!', 404));
+    return next(new AppError('Please provide Email and Password!', 401));
   }
 
   // 1. Check Email is available or not
   const user = await User.findOne({ email });
   if (!user) {
-    return next(new AppError('User not found with this Email Id', 404));
+    return next(new AppError('User not found with this Email Id', 401));
   }
 
   // 2. Verify Password
@@ -76,3 +76,66 @@ exports.login = catchAsync(async (req, res, next) => {
 
   createSendToken(user, 200, req, res);
 });
+
+//
+//
+// Protect route Controller
+//
+exports.protect = catchAsync(async (req, res, next) => {
+  // 1. check user logged in or not
+
+  const token = req.cookies.jwt;
+
+  if (!token) {
+    return next(
+      new AppError('You are not logged in! Please log in to get access.', 401)
+    );
+  }
+
+  // 2. verify Token
+  const decodedUser = jwt.verify(token, process.env.JWT_SECRET);
+  if (!decodedUser) {
+    return next(new AppError('User loggedout, please login again', 401));
+  }
+  console.log(decodedUser.id);
+  // 3. check user still exist
+  const currentUser = await User.findById(decodedUser.id);
+  if (!currentUser) {
+    return next(new AppError('User not found, please login again', 401));
+  }
+  req.user = currentUser;
+
+  next();
+});
+
+//
+//
+//  logout User
+//
+exports.logout = catchAsync(async (req, res, next) => {
+  res.cookie('jwt', 'loggedout', {
+    expires: new Date(Date.now() + 2 * 1000),
+    httpOnly: true,
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: 'User logged Out',
+  });
+  next();
+});
+
+//
+//
+//  Restrict to user
+//
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(
+        new AppError('You are not authorized to access this page.', 403)
+      );
+    }
+    next();
+  };
+};

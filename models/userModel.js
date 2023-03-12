@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    emun: ['user', 'admin'],
+    emun: ['user', 'broker', 'admin'],
     default: 'User',
   },
   createAt: {
