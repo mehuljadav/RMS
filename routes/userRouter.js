@@ -14,13 +14,29 @@ router.post('/logout', authController.logout);
 
 router
   .route('/')
-  .get(authController.protect, userController.getAllUser)
+  .get(
+    authController.protect,
+    authController.restrictTo('admin'),
+    userController.getAllUser
+  )
   .post(authController.protect, userController.createUser);
 
 router
   .route('/:id')
-  .get(authController.protect, userController.getUser)
-  .put(authController.protect, userController.updateUser)
-  .delete(authController.protect, userController.deleteUser);
+  .get(
+    authController.protect,
+    authController.restrictTo('admin'),
+    userController.getUser
+  )
+  .put(
+    authController.protect,
+    authController.restrictTo('admin'),
+    userController.updateUser
+  )
+  .delete(
+    authController.protect,
+    authController.restrictTo('admin'),
+    userController.deleteUser
+  );
 
 module.exports = router;
