@@ -1,3 +1,4 @@
+const { promisify } = require('util');
 const User = require('../models/userModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsyncError');
@@ -29,7 +30,11 @@ const createSendToken = (user, statusCode, req, res) => {
   res.status(statusCode).json({
     status: 'success',
     token,
-    data: user.email,
+    data: {
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+    },
   });
 };
 
@@ -83,9 +88,16 @@ exports.login = catchAsync(async (req, res, next) => {
 //
 exports.protect = catchAsync(async (req, res, next) => {
   // 1. check user logged in or not
-
-  const token = req.cookies.jwt;
-
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = `${req.headers.authorization}`.split(' ')[1];
+  } else {
+    token = req.cookies.jwt;
+  }
+  console.log('Header Token', token);
   if (!token) {
     return next(
       new AppError('You are not logged in! Please log in to get access.', 401)
@@ -93,11 +105,14 @@ exports.protect = catchAsync(async (req, res, next) => {
   }
 
   // 2. verify Token
-  const decodedUser = jwt.verify(token, process.env.JWT_SECRET);
+  const decodedUser = await promisify(jwt.verify)(
+    token,
+    process.env.JWT_SECRET
+  );
   if (!decodedUser) {
     return next(new AppError('User loggedout, please login again', 401));
   }
-  console.log(decodedUser.id);
+
   // 3. check user still exist
   const currentUser = await User.findById(decodedUser.id);
   if (!currentUser) {
@@ -110,20 +125,20 @@ exports.protect = catchAsync(async (req, res, next) => {
 
 //
 //
-//  logout User
+// logout User
+// No need to pass next and no need to use async await. because we are not going to retrive data from database
 //
-exports.logout = catchAsync(async (req, res, next) => {
-  res.cookie('jwt', 'loggedout', {
-    expires: new Date(Date.now() + 2 * 1000),
-    httpOnly: true,
-  });
-
-  res.status(200).json({
-    status: 'success',
-    data: 'User logged Out',
-  });
-  next();
-});
+exports.logout = (req, res) => {
+  res
+    .cookie('jwt', 'loggedout', {
+      expires: new Date(Date.now() + 2 * 1000),
+      httpOnly: true,
+    })
+    .status(200)
+    .json({
+      status: 'success',
+    });
+};
 
 //
 //
