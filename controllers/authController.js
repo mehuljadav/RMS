@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 //
 // Create New Send Token
 //
-const createSendToken = (user, statusCode, req, res) => {
+const createSendToken = (user, statusCode, req, res, welcomeBack) => {
   // 1. Generate new Token
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRESIN,
@@ -30,11 +30,8 @@ const createSendToken = (user, statusCode, req, res) => {
   res.status(statusCode).json({
     status: 'success',
     token,
-    data: {
-      firstname: user.firstname,
-      lastname: user.lastname,
-      email: user.email,
-    },
+    data: user.email,
+    message: welcomeBack,
   });
 };
 
@@ -43,6 +40,8 @@ const createSendToken = (user, statusCode, req, res) => {
 // Signup User Controller
 //
 exports.signup = catchAsync(async (req, res, next) => {
+  console.log(req.file);
+
   const user = await User.create({
     firstname: req.body.firstname,
     lastname: req.body.lastname,
@@ -69,7 +68,10 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   // 1. Check Email is available or not
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email })
+    .select('password')
+    .select('active');
+
   if (!user) {
     return next(new AppError('User not found with this Email Id', 401));
   }
@@ -78,9 +80,43 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!user || !(await user.passwordCorrect(password, user.password))) {
     return next(new AppError('Incorrect email or password', 401));
   }
-
-  createSendToken(user, 200, req, res);
+  console.log('status', user.active);
+  if (user.active === false) {
+    const backUser = await User.findByIdAndUpdate(
+      user.id,
+      { active: true },
+      { new: true, runValidators: true }
+    );
+    const welcomeBack = `welcome back, ${backUser.firstname}`;
+    createSendToken(user, 200, req, res, welcomeBack);
+  } else {
+    console.log('going to token ');
+    createSendToken(user, 200, req, res);
+  }
 });
+
+//
+//
+//  Activate Me
+//
+// exports.activateMe = catchAsync(async (req, res, next) => {
+//   //const { email } = req.body;
+//   console.log('activated c user data', req.user);
+//   console.log('activated c user data', req.user.email);
+//   const user = await User.findOneAndUpdate(
+//     { email: req.user.email },
+//     { active: true },
+//     { new: true, runValidators: true }
+//   )
+//     .select('active')
+//     .select('email');
+
+//   if (!user) {
+//     return next(new AppError('User not found', 404));
+//   }
+//   const welcomeBack = 'welcome back,Here are some new features!';
+//   createSendToken(user, 200, req, res, welcomeBack);
+// });
 
 //
 //
@@ -97,13 +133,12 @@ exports.protect = catchAsync(async (req, res, next) => {
   } else {
     token = req.cookies.jwt;
   }
-  console.log('Header Token', token);
+
   if (!token) {
     return next(
       new AppError('You are not logged in! Please log in to get access.', 401)
     );
   }
-
   // 2. verify Token
   const decodedUser = await promisify(jwt.verify)(
     token,

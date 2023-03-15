@@ -36,11 +36,16 @@ const userSchema = new mongoose.Schema({
       message: 'Invalid mobile number!',
     },
   },
+  avatar: {
+    type: String,
+    default: 'default.png',
+  },
   password: {
     type: String,
     required: [true, 'Please enter strong password!'],
     minlength: [6, 'Password Must be 6 Character Long!'],
     maxlength: [20, 'Password must be shorter then 20 characters!'],
+    select: false,
   },
   passwordConfirm: {
     type: String,
@@ -64,6 +69,11 @@ const userSchema = new mongoose.Schema({
   modifiedAt: {
     type: Date,
     default: Date.now,
+  },
+  active: {
+    type: Boolean,
+    default: true,
+    select: false,
   },
 });
 
@@ -95,6 +105,18 @@ userSchema.methods.passwordCorrect = async function (
 //
 // Encrypt password using bcryptJs npm
 //
+
+//
+//
+//  De-Activate user insted delete
+//  this will innitiate on all find methods, it will return all documents which is not set as a active : false
+
+userSchema.pre(/^find/, async function (next) {
+  if (this.op === 'find') {
+    this.find({ active: { $ne: false } });
+  }
+  next();
+});
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;
